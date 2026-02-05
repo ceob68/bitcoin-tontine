@@ -22,8 +22,7 @@
         "@btc-vision/as-pect-assembly": "^8.2.0",
         "@btc-vision/as-pect-cli": "^8.2.0",
         "@btc-vision/as-pect-transform": "^8.2.0",
-        "@types/node": "^25.0.10",
-        "assemblyscript": "^0.28.9",
+        "@types/node": "^25.2.0",
         "prettier": "^3.8.1"
     },
     "keywords": [
@@ -37,19 +36,25 @@
         "wbtc"
     ],
     "resolutions": {
-        "@btc-vision/btc-runtime": "^1.10.8"
+        "@btc-vision/btc-runtime": "^1.11.0-beta.1"
     },
     "homepage": "https://opnet.org",
     "type": "module",
+    "peerDependencies": {
+        "@btc-vision/assemblyscript": "^0.29.2",
+        "@btc-vision/btc-runtime": "^1.11.0-beta.1"
+    },
     "dependencies": {
         "@assemblyscript/loader": "^0.28.9",
-        "@btc-vision/as-bignum": "^0.0.7",
-        "@btc-vision/btc-runtime": "^1.11.0-alpha.2",
-        "@btc-vision/opnet-transform": "^0.2.1",
+        "@btc-vision/as-bignum": "^0.1.2",
+        "@btc-vision/assemblyscript": "^0.29.2",
+        "@btc-vision/bitcoin": "^6.5.6",
+        "@btc-vision/btc-runtime": "^1.11.0-beta.1",
+        "@btc-vision/opnet-transform": "^1.0.0",
         "@eslint/js": "^9.39.2",
         "gulplog": "^2.2.0",
         "ts-node": "^10.9.2",
         "typescript": "^5.9.3",
-        "typescript-eslint": "^8.53.1"
+        "typescript-eslint": "^8.54.0"
     }
 }

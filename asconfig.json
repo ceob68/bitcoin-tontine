@@ -25,7 +25,7 @@
             "use": ["abort=src/registry/index/abort"]
         },
         "btc-resolver": {
-			"initialMemory": 4,
+            "initialMemory": 4,
             "outFile": "build/Resolver.wasm",
             "use": ["abort=src/btc-resolver/index/abort"]
         }
@@ -43,7 +43,8 @@
             "bulk-memory",
             "simd",
             "reference-types",
-            "multi-value"
+            "multi-value",
+            "closures"
         ],
         "runtime": "stub",
         "memoryBase": 0,
