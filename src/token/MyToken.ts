@@ -65,7 +65,7 @@ export class MyToken extends OP20 {
      */
     @method({
         name: 'addressAndAmount',
-        type: 'tuple(address,address,address,uint8)[]',
+        type: ABIDataTypes.ADDRESS_UINT256_TUPLE,
     })
     @emit('Minted')
     @returns()
