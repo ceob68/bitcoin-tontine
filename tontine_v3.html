@@ -1,0 +1,1851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Bitcoin Tontine — Last Survivor Wins Everything</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;700&family=Barlow:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════
+   VARIABLES & RESET
+═══════════════════════════════════════════════════════ */
+:root {
+  --blood:    #C0392B;
+  --blood2:   #E74C3C;
+  --gold:     #F39C12;
+  --gold2:    #F7931A;
+  --alive:    #27AE60;
+  --alive2:   #2ECC71;
+  --dead:     #7F8C8D;
+  --bg:       #060608;
+  --bg2:      #0D0D12;
+  --bg3:      #12121A;
+  --panel:    #0F0F16;
+  --border:   #1E1E2E;
+  --border2:  #2A2A3E;
+  --text:     #E8E8F0;
+  --muted:    #4A4A6A;
+  --muted2:   #6A6A8A;
+  --font-display: 'Bebas Neue', sans-serif;
+  --font-mono:    'IBM Plex Mono', monospace;
+  --font-body:    'Barlow', sans-serif;
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: default;
+}
+
+/* ── NOISE TEXTURE OVERLAY ── */
+body::before {
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;
+  z-index:1000;
+  opacity:0.4;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SCANLINE TICKER
+═══════════════════════════════════════════════════════ */
+.war-ticker {
+  background: var(--blood);
+  padding: 0;
+  overflow: hidden;
+  position: sticky;
+  top: 0;
+  z-index: 900;
+  border-bottom: 1px solid var(--blood2);
+}
+.war-ticker-inner {
+  display: flex;
+  align-items: center;
+  height: 32px;
+}
+.ticker-label {
+  background: #000;
+  color: var(--blood2);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .15em;
+  padding: 0 14px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  border-right: 1px solid var(--blood2);
+  flex-shrink: 0;
+}
+.ticker-scroll { overflow: hidden; flex: 1; }
+.ticker-track {
+  display: flex;
+  animation: ticker-anim 40s linear infinite;
+  white-space: nowrap;
+}
+.ticker-event {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 0 32px;
+  color: rgba(255,255,255,0.9);
+  letter-spacing: .04em;
+}
+.ticker-event .sep { color: rgba(255,255,255,.4); margin: 0 8px; }
+@keyframes ticker-anim {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   NAV
+═══════════════════════════════════════════════════════ */
+nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 40px;
+  height: 64px;
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  background: rgba(6,6,8,0.8);
+  position: sticky;
+  top: 32px;
+  z-index: 800;
+}
+.logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.logo-skull {
+  font-size: 28px;
+  filter: grayscale(1);
+  animation: skull-float 3s ease-in-out infinite;
+}
+@keyframes skull-float {
+  0%,100% { transform: translateY(0) rotate(-3deg); }
+  50%      { transform: translateY(-4px) rotate(3deg); }
+}
+.logo-text {
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: .08em;
+  line-height: 1;
+}
+.logo-text span { color: var(--blood2); }
+.logo-sub {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted2);
+  letter-spacing: .2em;
+  margin-top: 2px;
+}
+.nav-right { display: flex; align-items: center; gap: 16px; }
+.nav-block {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted2);
+  padding: 6px 12px;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nav-block-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--alive2);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+.connect-btn {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  padding: 8px 20px;
+  background: transparent;
+  color: var(--gold2);
+  border: 1px solid var(--gold2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .2s;
+  text-transform: uppercase;
+}
+.connect-btn:hover {
+  background: var(--gold2);
+  color: #000;
+}
+.connect-btn.connected {
+  border-color: var(--alive2);
+  color: var(--alive2);
+}
+
+/* ═══════════════════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════════════════ */
+.hero {
+  position: relative;
+  padding: 80px 40px 60px;
+  text-align: center;
+  overflow: hidden;
+}
+.hero-grid-bg {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(192,57,43,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(192,57,43,.04) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+}
+.hero-glow {
+  position: absolute;
+  top: -100px; left: 50%;
+  transform: translateX(-50%);
+  width: 700px; height: 400px;
+  background: radial-gradient(ellipse, rgba(192,57,43,.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-content { position: relative; z-index: 2; }
+.hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: .2em;
+  color: var(--blood2);
+  border: 1px solid rgba(192,57,43,.4);
+  padding: 6px 16px;
+  border-radius: 2px;
+  margin-bottom: 32px;
+  text-transform: uppercase;
+}
+.hero h1 {
+  font-family: var(--font-display);
+  font-size: clamp(72px, 14vw, 160px);
+  line-height: .9;
+  letter-spacing: .02em;
+  margin-bottom: 8px;
+}
+.hero h1 .line2 { color: var(--blood2); display: block; }
+.hero-sub {
+  font-size: clamp(14px, 2vw, 18px);
+  color: var(--muted2);
+  max-width: 560px;
+  margin: 24px auto 48px;
+  line-height: 1.7;
+  font-weight: 400;
+}
+.hero-sub strong { color: var(--text); font-weight: 700; }
+
+/* ── STATS ROW ── */
+.stats-row {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  max-width: 900px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.stat-box {
+  flex: 1;
+  padding: 20px 24px;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  text-align: center;
+  position: relative;
+}
+.stat-box:last-child { border-right: none; }
+.stat-box::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--blood);
+  transform: scaleX(0);
+  transition: transform .4s;
+}
+.stat-box:hover::after { transform: scaleX(1); }
+.stat-num {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--gold2);
+  display: block;
+}
+.stat-lbl {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .18em;
+  margin-top: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SURVIVOR DASHBOARD
+═══════════════════════════════════════════════════════ */
+.dashboard {
+  display: none;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px 60px;
+}
+.dashboard.visible { display: block; }
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.section-title {
+  font-family: var(--font-display);
+  font-size: 36px;
+  letter-spacing: .06em;
+}
+.section-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .15em;
+  color: var(--blood2);
+  border: 1px solid var(--blood);
+  padding: 4px 10px;
+  text-transform: uppercase;
+}
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) 280px;
+  gap: 16px;
+}
+
+/* ── POOL SURVIVAL CARD ── */
+.survival-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+.survival-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+}
+.survival-card.not-joined::before { background: var(--muted); }
+.survival-card.alive::before      { background: var(--alive2); }
+.survival-card.danger::before     { background: var(--gold2); animation: danger-flash .6s infinite; }
+.survival-card.dead::before       { background: var(--blood); }
+@keyframes danger-flash { 0%,100%{opacity:1} 50%{opacity:.2} }
+
+.card-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.card-pool-id {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: .06em;
+  color: var(--muted2);
+}
+.card-status-pill {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .15em;
+  padding: 4px 10px;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+.pill-inactive { background: rgba(127,140,141,.15); color: var(--dead); border: 1px solid rgba(127,140,141,.3); }
+.pill-alive    { background: rgba(46,204,113,.12); color: var(--alive2); border: 1px solid rgba(46,204,113,.3); }
+.pill-danger   { background: rgba(243,156,18,.12); color: var(--gold2); border: 1px solid rgba(243,156,18,.4); animation: danger-flash .6s infinite; }
+.pill-hunting  { background: rgba(192,57,43,.15); color: var(--blood2); border: 1px solid rgba(192,57,43,.4); }
+
+.card-body { padding: 20px; }
+
+/* COUNTDOWN DISPLAY */
+.countdown-display {
+  margin-bottom: 20px;
+  text-align: center;
+  padding: 20px;
+  background: var(--bg2);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.countdown-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.countdown-blocks {
+  font-family: var(--font-display);
+  font-size: 64px;
+  line-height: 1;
+  transition: color .5s;
+}
+.countdown-blocks.safe    { color: var(--alive2); }
+.countdown-blocks.warning { color: var(--gold2); }
+.countdown-blocks.danger  { color: var(--blood2); animation: danger-flash .5s infinite; }
+.countdown-time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted2);
+  margin-top: 4px;
+}
+.countdown-deadline {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+/* HEALTH BAR */
+.health-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.health-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.health-bar-fill {
+  height: 100%;
+  border-radius: 1px;
+  transition: width .8s ease, background .5s;
+}
+.health-pct {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 36px;
+  text-align: right;
+}
+
+/* EARNINGS ROW */
+.earnings-box {
+  background: rgba(46,204,113,.05);
+  border: 1px solid rgba(46,204,113,.15);
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.earnings-lbl { font-size: 11px; color: var(--muted2); }
+.earnings-val {
+  font-family: var(--font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--alive2);
+}
+.earnings-victims {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ACTION BUTTONS */
+.ping-btn {
+  width: 100%;
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ping-btn.alive-ping {
+  background: var(--alive2);
+  color: #000;
+}
+.ping-btn.alive-ping:hover { background: #27AE60; }
+.ping-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.hunt-btn {
+  width: 100%;
+  padding: 11px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--blood2);
+  border: 1px solid var(--blood);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.hunt-btn:hover:not(:disabled) {
+  background: var(--blood);
+  color: #fff;
+}
+.hunt-btn:disabled { opacity: .3; cursor: not-allowed; }
+
+.join-card-btn {
+  width: 100%;
+  padding: 13px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--gold2);
+  border: 1px solid var(--gold2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.join-card-btn:hover { background: var(--gold2); color: #000; }
+
+.not-joined-info {
+  text-align: center;
+  padding: 12px 0 16px;
+}
+.not-joined-info p {
+  font-size: 12px;
+  color: var(--muted2);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+/* ── TOTALS CARD ── */
+.totals-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--gold2);
+  border-radius: 4px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+.totals-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: .06em;
+  margin-bottom: 24px;
+  color: var(--muted2);
+}
+.totals-big {
+  font-family: var(--font-display);
+  font-size: 52px;
+  color: var(--alive2);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.totals-big-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: .15em;
+  margin-bottom: 24px;
+}
+.totals-rows { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.totals-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bg2);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.totals-row span:first-child { color: var(--muted2); }
+.totals-row span:last-child {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--alive2);
+}
+.totals-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0;
+}
+.totals-victims {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: rgba(192,57,43,.06);
+  border: 1px solid rgba(192,57,43,.2);
+  border-radius: 4px;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.totals-victims span:first-child { color: var(--muted2); }
+.totals-victims span:last-child {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--blood2);
+}
+
+/* ═══════════════════════════════════════════════════════
+   HUNT ALERT (full-width dramatic overlay)
+═══════════════════════════════════════════════════════ */
+.hunt-alert {
+  display: none;
+  background: rgba(192,57,43,.08);
+  border: 1px solid var(--blood2);
+  border-left: 4px solid var(--blood2);
+  border-radius: 4px;
+  padding: 20px 28px;
+  margin-bottom: 20px;
+  animation: hunt-pulse 1s infinite;
+}
+.hunt-alert.active { display: flex; align-items: center; gap: 24px; }
+@keyframes hunt-pulse {
+  0%,100%{border-color:var(--blood2);background:rgba(192,57,43,.08);}
+  50%{border-color:var(--blood);background:rgba(192,57,43,.15);}
+}
+.hunt-icon { font-size: 40px; animation: hunt-shake .3s infinite; flex-shrink: 0; }
+@keyframes hunt-shake {
+  0%,100%{transform:rotate(-5deg)}
+  50%{transform:rotate(5deg)}
+}
+.hunt-text { flex: 1; }
+.hunt-text h3 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  letter-spacing: .06em;
+  color: var(--blood2);
+  margin-bottom: 4px;
+}
+.hunt-text p { font-size: 13px; color: var(--muted2); }
+.hunt-timer {
+  font-family: var(--font-display);
+  font-size: 52px;
+  color: var(--blood2);
+  animation: danger-flash .5s infinite;
+  text-align: center;
+  min-width: 80px;
+}
+.hunt-actions { display: flex; flex-direction: column; gap: 8px; min-width: 160px; }
+.counter-btn {
+  padding: 12px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  background: var(--alive2);
+  color: #000;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+  animation: danger-flash .5s infinite;
+}
+.flee-btn {
+  padding: 10px 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  background: transparent;
+  color: var(--muted2);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════
+   ARENA SECTION (PUBLIC POOLS)
+═══════════════════════════════════════════════════════ */
+.arena-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px 60px;
+}
+.arena-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 20px;
+  margin-top: 32px;
+}
+.arena-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: all .3s;
+  cursor: pointer;
+}
+.arena-card:hover {
+  border-color: var(--blood2);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(192,57,43,.1);
+}
+.arena-card-header {
+  padding: 20px 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+.arena-num {
+  font-family: var(--font-display);
+  font-size: 64px;
+  line-height: 1;
+  color: var(--border2);
+}
+.arena-name {
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: .05em;
+  margin-bottom: 4px;
+}
+.arena-interval {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted2);
+  letter-spacing: .12em;
+}
+.arena-body { padding: 20px 24px; }
+.arena-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.arena-stat {
+  background: var(--bg2);
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+.arena-stat-val {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+}
+.arena-stat-key {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  margin-top: 2px;
+}
+
+/* POOL PROGRESS BAR */
+.pool-progress-wrap { margin-bottom: 20px; }
+.pool-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.pool-progress-bar {
+  height: 8px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.pool-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--blood), var(--gold2));
+  transition: width .8s ease;
+}
+
+.enter-arena-btn {
+  width: 100%;
+  padding: 14px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  background: var(--blood);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.enter-arena-btn:hover { background: var(--blood2); }
+
+/* ═══════════════════════════════════════════════════════
+   HOW TO SURVIVE
+═══════════════════════════════════════════════════════ */
+.rules-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px 80px;
+}
+.rules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 32px;
+}
+.rule-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+}
+.rule-card::before {
+  content: attr(data-num);
+  position: absolute;
+  top: -10px;
+  right: 16px;
+  font-family: var(--font-display);
+  font-size: 80px;
+  color: var(--border);
+  line-height: 1;
+  pointer-events: none;
+}
+.rule-icon { font-size: 32px; margin-bottom: 16px; }
+.rule-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: .04em;
+  margin-bottom: 10px;
+}
+.rule-desc { font-size: 13px; color: var(--muted2); line-height: 1.7; }
+.rule-desc strong { color: var(--text); }
+
+/* ═══════════════════════════════════════════════════════
+   LIVE FEED
+═══════════════════════════════════════════════════════ */
+.feed-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 40px 80px;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+}
+.feed-main {}
+.feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 32px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+.feed-list::-webkit-scrollbar { width: 4px; }
+.feed-list::-webkit-scrollbar-track { background: var(--bg2); }
+.feed-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.feed-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  animation: slide-in .3s ease;
+}
+@keyframes slide-in { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+.feed-type {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.feed-type.death   { background: rgba(192,57,43,.2); }
+.feed-type.win     { background: rgba(243,156,18,.15); }
+.feed-type.ping    { background: rgba(46,204,113,.1); }
+.feed-type.join    { background: rgba(127,140,141,.1); }
+.feed-type.hunt    { background: rgba(192,57,43,.15); }
+.feed-body { flex: 1; color: var(--muted2); }
+.feed-body strong { color: var(--text); }
+.feed-amount {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold2);
+}
+.feed-time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* LEADERBOARD */
+.leaderboard {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 32px;
+  align-self: start;
+}
+.lb-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: .06em;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.lb-header span {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: .12em;
+}
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.lb-row:last-child { border-bottom: none; }
+.lb-rank {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--muted);
+  width: 28px;
+}
+.lb-rank.first  { color: var(--gold2); }
+.lb-rank.second { color: var(--dead); }
+.lb-rank.third  { color: #CD7F32; }
+.lb-addr { flex: 1; font-family: var(--font-mono); color: var(--muted2); font-size: 11px; }
+.lb-pts {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--alive2);
+}
+
+/* ═══════════════════════════════════════════════════════
+   MODAL
+═══════════════════════════════════════════════════════ */
+.modal-bg {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.9);
+  z-index: 2000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(8px);
+}
+.modal-bg.open { display: flex; }
+.modal-box {
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-top: 3px solid var(--blood2);
+  border-radius: 4px;
+  padding: 36px;
+  max-width: 480px;
+  width: 100%;
+  position: relative;
+  animation: modal-in .2s ease;
+}
+@keyframes modal-in { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+.modal-close {
+  position: absolute;
+  top: 16px; right: 16px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--muted2);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  letter-spacing: .05em;
+  margin-bottom: 8px;
+}
+.modal-sub { font-size: 13px; color: var(--muted2); margin-bottom: 24px; line-height: 1.6; }
+.modal-warning {
+  background: rgba(192,57,43,.08);
+  border: 1px solid rgba(192,57,43,.25);
+  border-left: 3px solid var(--blood2);
+  padding: 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #E88;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+.modal-stats {
+  background: var(--bg2);
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.modal-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.modal-stat-row:last-child { border-bottom: none; }
+.modal-stat-row span:first-child { color: var(--muted2); }
+.modal-stat-row span:last-child { font-family: var(--font-mono); font-weight: 700; }
+.modal-confirm {
+  width: 100%;
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  background: var(--blood);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.modal-confirm:hover { background: var(--blood2); }
+
+/* ── HUNT MODAL ── */
+.target-select {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+.target-select label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 8px;
+}
+.target-select select {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 8px;
+  border-radius: 4px;
+  outline: none;
+}
+
+/* ═══════════════════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════════════════ */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 24px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.footer-logo {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: .06em;
+  color: var(--muted);
+}
+.footer-links {
+  display: flex;
+  gap: 24px;
+}
+.footer-links a {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  text-decoration: none;
+  letter-spacing: .08em;
+  transition: color .2s;
+}
+.footer-links a:hover { color: var(--gold2); }
+.footer-copy {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════════ */
+@media(max-width:900px){
+  nav { padding: 0 20px; }
+  .hero { padding: 60px 20px 40px; }
+  .stats-row { flex-wrap: wrap; }
+  .stat-box { min-width: 50%; border-bottom: 1px solid var(--border); }
+  .dash-grid { grid-template-columns: 1fr; }
+  .arena-section,.rules-section,.feed-section,.dashboard { padding-left:20px; padding-right:20px; }
+  .feed-section { grid-template-columns: 1fr; }
+  footer { padding: 20px; flex-direction: column; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ DEATH TICKER ═══════ -->
+<div class="war-ticker">
+  <div class="war-ticker-inner">
+    <div class="ticker-label">☠ LIVE KILLS</div>
+    <div class="ticker-scroll">
+      <div class="ticker-track" id="tickerTrack"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ NAV ═══════ -->
+<nav>
+  <div class="logo-wrap">
+    <div class="logo-skull">💀</div>
+    <div>
+      <div class="logo-text">BITCOIN <span>TONTINE</span></div>
+      <div class="logo-sub">LAST SURVIVOR WINS EVERYTHING · OP_NET BITCOIN L1</div>
+    </div>
+  </div>
+  <div class="nav-right">
+    <div class="nav-block">
+      <div class="nav-block-dot"></div>
+      <span id="navBlock">BLOCK —</span>
+    </div>
+    <button class="connect-btn" id="connectBtn" onclick="connectWallet()">
+      CONNECT OP_WALLET
+    </button>
+  </div>
+</nav>
+
+<!-- ═══════ HERO ═══════ -->
+<section class="hero">
+  <div class="hero-grid-bg"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-content">
+    <div class="hero-tag">
+      <div class="pulse" style="width:6px;height:6px;border-radius:50%;background:var(--blood2);animation:pulse 1s infinite;"></div>
+      LIVE ON BITCOIN L1 · POWERED BY OP_NET
+    </div>
+    <h1>
+      PING OR
+      <span class="line2">DIE.</span>
+    </h1>
+    <p class="hero-sub">
+      50 players. One pool. <strong>No exit.</strong><br>
+      Miss your block countdown and your tokens are redistributed to survivors.<br>
+      The last one standing claims <strong>everything.</strong>
+    </p>
+    <div class="stats-row">
+      <div class="stat-box">
+        <span class="stat-num" id="statLocked">—</span>
+        <span class="stat-lbl">TOKENS LOCKED</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num" id="statSurvivors">—</span>
+        <span class="stat-lbl">SURVIVORS</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num" id="statKilled">—</span>
+        <span class="stat-lbl">LIQUIDATED TODAY</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num" id="statPools">—</span>
+        <span class="stat-lbl">ACTIVE POOLS</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-num" id="statBlock">—</span>
+        <span class="stat-lbl">BITCOIN BLOCK</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ HUNT ALERT (shown when YOU are being hunted) ═══════ -->
+<div style="max-width:1200px;margin:0 auto;padding:0 40px;">
+  <div class="hunt-alert" id="huntAlert">
+    <div class="hunt-icon">🎯</div>
+    <div class="hunt-text">
+      <h3>YOU ARE BEING HUNTED</h3>
+      <p id="huntAlertText">opt1p...x7f declared a hunt on you in Pool #1. Ping now to counter and take their bullet + 5% of their deposit.</p>
+    </div>
+    <div class="hunt-timer" id="huntCountdown">60</div>
+    <div class="hunt-actions">
+      <button class="counter-btn" onclick="counterHunt()">⚡ PING &amp; COUNTER</button>
+      <button class="flee-btn" onclick="acceptDeath()">Accept death</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ SURVIVOR DASHBOARD ═══════ -->
+<div class="dashboard" id="dashboard">
+  <div class="section-header">
+    <div class="section-title">YOUR SURVIVAL STATUS</div>
+    <div class="section-tag">CONNECTED</div>
+  </div>
+
+  <div class="dash-grid">
+
+    <!-- Pool 0 card -->
+    <div class="survival-card not-joined" id="card0">
+      <div class="card-head">
+        <span class="card-pool-id">POOL #<span id="c0poolid">—</span></span>
+        <span class="card-status-pill pill-inactive" id="c0status">NOT JOINED</span>
+      </div>
+      <div class="card-body" id="c0body">
+        <div class="not-joined-info">
+          <p>You are not in this pool.<br>Entry: <strong>10 tokens</strong></p>
+          <button class="join-card-btn" onclick="openJoinModal(0)">ENTER ARENA</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pool 1 card (if in multiple pools) -->
+    <div class="survival-card not-joined" id="card1">
+      <div class="card-head">
+        <span class="card-pool-id">POOL #<span id="c1poolid">—</span></span>
+        <span class="card-status-pill pill-inactive" id="c1status">NOT JOINED</span>
+      </div>
+      <div class="card-body" id="c1body">
+        <div class="not-joined-info">
+          <p>You are not in this pool.<br>Entry: <strong>10 tokens</strong></p>
+          <button class="join-card-btn" onclick="openJoinModal(1)">ENTER ARENA</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty slot -->
+    <div class="survival-card not-joined" id="card2">
+      <div class="card-head">
+        <span class="card-pool-id">POOL #<span id="c2poolid">—</span></span>
+        <span class="card-status-pill pill-inactive" id="c2status">NOT JOINED</span>
+      </div>
+      <div class="card-body" id="c2body">
+        <div class="not-joined-info">
+          <p>You are not in this pool.<br>Entry: <strong>10 tokens</strong></p>
+          <button class="join-card-btn" onclick="openJoinModal(2)">ENTER ARENA</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOTALS CARD -->
+    <div class="totals-card">
+      <div class="totals-title">TOTAL SPOILS</div>
+      <div class="totals-big" id="totalEarnings">0</div>
+      <div class="totals-big-label">TOKENS FROM LIQUIDATIONS</div>
+      <div class="totals-rows">
+        <div class="totals-row"><span>Pool #0</span><span id="t0earn">+0 tokens</span></div>
+        <div class="totals-row"><span>Pool #1</span><span id="t1earn">+0 tokens</span></div>
+        <div class="totals-row"><span>Pool #2</span><span id="t2earn">+0 tokens</span></div>
+        <div class="totals-divider"></div>
+        <div class="totals-victims">
+          <span>☠ VICTIMS LIQUIDATED</span>
+          <span id="totalVictims">0</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════ PUBLIC ARENA (pools to join) ═══════ -->
+<div class="arena-section">
+  <div class="section-header">
+    <div class="section-title">OPEN ARENAS</div>
+    <div class="section-tag">LIVE POOLS</div>
+  </div>
+  <div class="arena-grid" id="arenaGrid">
+    <!-- Populated by JS -->
+  </div>
+</div>
+
+<!-- ═══════ RULES ═══════ -->
+<div class="rules-section">
+  <div class="section-header">
+    <div class="section-title">HOW TO SURVIVE</div>
+    <div class="section-tag">THE LAW</div>
+  </div>
+  <div class="rules-grid">
+    <div class="rule-card" data-num="01">
+      <div class="rule-icon">⚔️</div>
+      <div class="rule-title">ENTER THE ARENA</div>
+      <div class="rule-desc">Deposit <strong>10 tokens</strong> to join a pool. The game starts when 5 players join. <strong>No withdrawal. Ever.</strong> The only way out is death or victory.</div>
+    </div>
+    <div class="rule-card" data-num="02">
+      <div class="rule-icon">📍</div>
+      <div class="rule-title">PING TO SURVIVE</div>
+      <div class="rule-desc">Hit PING before your block countdown hits zero. The window starts at <strong>7 days</strong> and shrinks every day until it reaches <strong>1 hour.</strong> Miss it — you're dead.</div>
+    </div>
+    <div class="rule-card" data-num="03">
+      <div class="rule-icon">🎯</div>
+      <div class="rule-title">HUNT OR BE HUNTED</div>
+      <div class="rule-desc">After 70% of the game — <strong>3 bullets</strong> are loaded into the pool. Each player can use only one. Declare a hunt. Your target has <strong>1 block to counter-ping</strong> and take your bullet.</div>
+    </div>
+    <div class="rule-card" data-num="04">
+      <div class="rule-icon">⚡</div>
+      <div class="rule-title">COUNTER-HUNT</div>
+      <div class="rule-desc">If someone hunts you and you ping within the window — <strong>the hunter loses their bullet</strong> and pays you <strong>5% of their deposit.</strong> The hunted becomes the hunter.</div>
+    </div>
+    <div class="rule-card" data-num="05">
+      <div class="rule-icon">💰</div>
+      <div class="rule-title">EARN FROM THE DEAD</div>
+      <div class="rule-desc">Every liquidation distributes <strong>89.7%</strong> of the victim's tokens to survivors — proportional to your <strong>time in the pool.</strong> Veterans earn more than newcomers.</div>
+    </div>
+    <div class="rule-card" data-num="06">
+      <div class="rule-icon">🏆</div>
+      <div class="rule-title">LAST ONE WINS ALL</div>
+      <div class="rule-desc">When only one player remains, they claim <strong>the entire pool.</strong> All accumulated tokens. All liquidation earnings. <strong>Every single token.</strong></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ LIVE FEED + LEADERBOARD ═══════ -->
+<div class="feed-section">
+  <div class="feed-main">
+    <div class="section-header">
+      <div class="section-title">LIVE FEED</div>
+      <div class="section-tag">REAL-TIME</div>
+    </div>
+    <div class="feed-list" id="feedList"></div>
+  </div>
+  <div>
+    <div class="leaderboard">
+      <div class="lb-header">
+        VETERANS
+        <span>BY POINTS</span>
+      </div>
+      <div id="leaderboard">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ FOOTER ═══════ -->
+<footer>
+  <div class="footer-logo">BITCOIN TONTINE</div>
+  <div class="footer-links">
+    <a href="https://github.com/ceob68/bitcoin-tontine" target="_blank">GITHUB</a>
+    <a href="https://opnet.org" target="_blank">OP_NET</a>
+    <a href="https://opscan.org" target="_blank">OPSCAN</a>
+    <a href="https://vibecode.finance" target="_blank">VIBECODE</a>
+  </div>
+  <div class="footer-copy">BUILT ON BITCOIN L1 · 0.3% PROTOCOL FEE · CODE IS LAW</div>
+</footer>
+
+<!-- ═══════ MODALS ═══════ -->
+
+<!-- JOIN MODAL -->
+<div class="modal-bg" id="joinModal" onclick="closeModal('joinModal',event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('joinModal').classList.remove('open')">✕</button>
+    <div class="modal-title">ENTER ARENA</div>
+    <div class="modal-sub">You are about to lock tokens in the arena. Read carefully — there is no going back.</div>
+    <div class="modal-warning">
+      ⚠️ Once you enter, your tokens are locked forever. The only way out is to be liquidated or win the entire pool. <strong>There is no withdrawal.</strong> The smart contract is the only law.
+    </div>
+    <div class="modal-stats">
+      <div class="modal-stat-row"><span>Entry Amount</span><span>10 TOKENS</span></div>
+      <div class="modal-stat-row"><span>Initial Ping Interval</span><span>7 DAYS</span></div>
+      <div class="modal-stat-row"><span>Minimum Interval</span><span>1 HOUR</span></div>
+      <div class="modal-stat-row"><span>Max Players</span><span>50 HISTORICAL</span></div>
+      <div class="modal-stat-row"><span>Protocol Fee</span><span>0.3%</span></div>
+      <div class="modal-stat-row"><span>Network</span><span>BITCOIN L1 TESTNET</span></div>
+    </div>
+    <button class="modal-confirm" onclick="confirmJoin()">
+      ☠ I UNDERSTAND — ENTER THE ARENA
+    </button>
+  </div>
+</div>
+
+<!-- HUNT MODAL -->
+<div class="modal-bg" id="huntModal" onclick="closeModal('huntModal',event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('huntModal').classList.remove('open')">✕</button>
+    <div class="modal-title">DECLARE HUNT</div>
+    <div class="modal-sub">Choose your target carefully. If they ping during the 1-block window, you lose your bullet and 5% of your deposit.</div>
+    <div class="modal-warning">
+      ⚠️ You only have <strong>ONE bullet per pool.</strong> If the hunt fails, you pay a <strong>5% penalty</strong> of your deposit to your target. Choose wisely.
+    </div>
+    <div class="target-select">
+      <label>SELECT TARGET</label>
+      <select id="huntTargetSelect">
+        <option value="">— choose a player —</option>
+      </select>
+    </div>
+    <div class="modal-stats" id="huntTargetInfo">
+      <div class="modal-stat-row"><span>Target Health</span><span id="huntTargetHealth">—</span></div>
+      <div class="modal-stat-row"><span>Blocks Remaining</span><span id="huntTargetBlocks">—</span></div>
+      <div class="modal-stat-row"><span>Your Penalty (if miss)</span><span id="huntPenalty">—</span></div>
+    </div>
+    <button class="modal-confirm" style="background:var(--blood)" onclick="confirmHunt()">
+      🎯 DECLARE HUNT
+    </button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// CONTRACT CONFIG
+// ══════════════════════════════════════════
+const CONTRACT = 'DEPLOYED_CONTRACT_ADDRESS_HERE';
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let currentBlock    = 900000;
+let walletConnected = false;
+let walletAddress   = '';
+let huntAlertActive = false;
+let huntTimer       = null;
+let joinTargetPool  = 0;
+let huntTargetPool  = 0;
+
+// Mock player state (replaced by contract reads post-deploy)
+let playerPools = [
+  // Example: user is alive in pool 0
+  {
+    poolId: 0,
+    active: true,
+    lastPing: 900000 - 600,   // pinged 600 blocks ago
+    interval: 900,             // current interval in blocks
+    deposit: 100_000_000_000, // 10 tokens
+    points: 4200,
+    victims: 3,
+    earnings: 30,
+    usedBullet: false,
+  },
+  { poolId: 1, active: false },
+  { poolId: 2, active: false },
+];
+
+// Mock pool data (replaced by contract reads)
+let poolData = [
+  { id:0, historical:23, active:18, funds:2300_000_000_000, bullets:3, started:true, gameStart:899000, interval:820 },
+  { id:1, historical:7,  active:7,  funds:700_000_000_000,  bullets:3, started:false, gameStart:900144, interval:1008 },
+  { id:2, historical:50, active:1,  funds:5000_000_000_000, bullets:0, started:true, gameStart:895000, interval:6 },
+];
+
+// ══════════════════════════════════════════
+// TICKER
+// ══════════════════════════════════════════
+const tickerData = [
+  '💀 opt1p...x7f LIQUIDATED in Pool #0 — 10 tokens redistributed',
+  '🏆 opt1p...3kz WON Pool #2 — 5,000 tokens claimed',
+  '📍 opt1p...9ab PINGED Pool #0 — next ping in 820 blocks',
+  '🎯 opt1p...f2d DECLARED HUNT on opt1p...99a in Pool #1',
+  '⚡ opt1p...99a COUNTER-PINGED — hunter lost bullet + 5% penalty',
+  '💀 opt1p...77c DIED in Pool #1 — expired 144 blocks ago',
+  '⚔️ opt1p...b3e JOINED Pool #0 — 18 survivors remaining',
+  '💀 opt1p...f9d LIQUIDATED in Pool #0 — inactivity',
+];
+function buildTicker(){
+  const d = [...tickerData,...tickerData];
+  document.getElementById('tickerTrack').innerHTML = d.map(t =>
+    `<span class="ticker-event">${t}<span class="sep">|</span></span>`
+  ).join('');
+}
+
+// ══════════════════════════════════════════
+// FEED
+// ══════════════════════════════════════════
+const feedEvents = [
+  {type:'death',icon:'💀',text:'<strong>opt1p...x7f</strong> liquidated in <strong>Pool #0</strong>',amount:'+30 tokens each',time:'8s'},
+  {type:'win',  icon:'🏆',text:'<strong>opt1p...3kz</strong> won <strong>Pool #2</strong>',amount:'+5,000 tokens',time:'4m'},
+  {type:'hunt', icon:'🎯',text:'<strong>opt1p...f2d</strong> hunted <strong>opt1p...99a</strong> — countered!',amount:'',time:'12m'},
+  {type:'ping', icon:'📍',text:'<strong>opt1p...9ab</strong> pinged <strong>Pool #0</strong>',amount:'',time:'18m'},
+  {type:'death',icon:'💀',text:'<strong>opt1p...77c</strong> died in <strong>Pool #1</strong> — inactivity',amount:'+100 tokens',time:'31m'},
+  {type:'join', icon:'⚔️',text:'<strong>opt1p...b3e</strong> joined <strong>Pool #0</strong>',amount:'10 tokens locked',time:'45m'},
+  {type:'ping', icon:'📍',text:'<strong>opt1p...aa1</strong> pinged <strong>Pool #1</strong>',amount:'',time:'1h'},
+];
+function buildFeed(){
+  document.getElementById('feedList').innerHTML = feedEvents.map(e => `
+    <div class="feed-item">
+      <div class="feed-type ${e.type}">${e.icon}</div>
+      <div class="feed-body">${e.text}</div>
+      ${e.amount ? `<div class="feed-amount">${e.amount}</div>` : ''}
+      <div class="feed-time">${e.time} ago</div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════
+// LEADERBOARD
+// ══════════════════════════════════════════
+const lbData = [
+  {addr:'opt1p...9ab', pts:14200, pool:0},
+  {addr:'opt1p...f2d', pts:9800,  pool:0},
+  {addr:'opt1p...77a', pts:6300,  pool:1},
+  {addr:'opt1p...b3e', pts:4100,  pool:0},
+  {addr:'opt1p...cc2', pts:2900,  pool:2},
+];
+function buildLeaderboard(){
+  const ranks = ['first','second','third','',''];
+  document.getElementById('leaderboard').innerHTML = lbData.map((r,i) => `
+    <div class="lb-row">
+      <div class="lb-rank ${ranks[i]||''}">${i+1}</div>
+      <div class="lb-addr">${r.addr}</div>
+      <div class="lb-pts">${r.pts.toLocaleString()} pts</div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════
+// ARENA CARDS (public pool info)
+// ══════════════════════════════════════════
+function buildArenaCards(){
+  const grid = document.getElementById('arenaGrid');
+  grid.innerHTML = poolData.map(p => {
+    const pct = Math.round((p.historical / 50) * 100);
+    const blocksLeft = p.active > 0 ? `${p.interval} blocks (~${blocksToTime(p.interval)})` : '—';
+    return `
+    <div class="arena-card" onclick="openJoinModal(${p.id})">
+      <div class="arena-card-header">
+        <div>
+          <div class="arena-name">POOL #${p.id}</div>
+          <div class="arena-interval">CURRENT PING: ${blocksToTime(p.interval)} · ${p.interval} BLOCKS</div>
+        </div>
+        <div class="arena-num">${p.id}</div>
+      </div>
+      <div class="arena-body">
+        <div class="arena-stats-grid">
+          <div class="arena-stat">
+            <div class="arena-stat-val">${p.active}</div>
+            <div class="arena-stat-key">SURVIVORS</div>
+          </div>
+          <div class="arena-stat">
+            <div class="arena-stat-val">${p.historical}/50</div>
+            <div class="arena-stat-key">HISTORICAL</div>
+          </div>
+          <div class="arena-stat">
+            <div class="arena-stat-val">${formatTokens(p.funds)}</div>
+            <div class="arena-stat-key">PRIZE POOL</div>
+          </div>
+          <div class="arena-stat">
+            <div class="arena-stat-val">${p.bullets}</div>
+            <div class="arena-stat-key">BULLETS LEFT</div>
+          </div>
+        </div>
+        <div class="pool-progress-wrap">
+          <div class="pool-progress-labels">
+            <span>POOL FILL</span>
+            <span>${p.historical}/50</span>
+          </div>
+          <div class="pool-progress-bar">
+            <div class="pool-progress-fill" style="width:${pct}%"></div>
+          </div>
+        </div>
+        <button class="enter-arena-btn" ${p.historical >= 50 ? 'disabled' : ''}>
+          ${p.historical >= 50 ? '☠ ARENA FULL' : '⚔️ ENTER ARENA — 10 TOKENS'}
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// SURVIVOR DASHBOARD CARDS
+// ══════════════════════════════════════════
+function buildDashCards(){
+  playerPools.forEach((p, i) => {
+    const card     = document.getElementById(`card${i}`);
+    const status   = document.getElementById(`c${i}status`);
+    const body     = document.getElementById(`c${i}body`);
+    const poolIdEl = document.getElementById(`c${i}poolid`);
+    poolIdEl.textContent = p.poolId;
+
+    if (!p.active) {
+      card.className    = 'survival-card not-joined';
+      status.className  = 'card-status-pill pill-inactive';
+      status.textContent= 'NOT JOINED';
+      body.innerHTML    = `
+        <div class="not-joined-info">
+          <p>You are not in this pool.<br>Entry: <strong>10 tokens</strong></p>
+          <button class="join-card-btn" onclick="openJoinModal(${i})">ENTER ARENA</button>
+        </div>`;
+      return;
+    }
+
+    // Calculate countdown
+    const elapsed   = currentBlock - p.lastPing;
+    const remaining = Math.max(0, p.interval - elapsed);
+    const pct       = remaining / p.interval;
+    const isDanger  = pct < 0.2;
+    const isWarning = pct < 0.5 && !isDanger;
+    const statusClass = isDanger ? 'danger' : 'alive';
+    const countClass  = isDanger ? 'danger' : isWarning ? 'warning' : 'safe';
+
+    card.className   = `survival-card ${statusClass}`;
+    status.className = `card-status-pill ${isDanger ? 'pill-danger' : 'pill-alive'}`;
+    status.textContent = isDanger ? '⚠ DANGER' : '● ALIVE';
+
+    const nextDeadline = p.lastPing + p.interval;
+    const deadlineBlock = nextDeadline;
+
+    body.innerHTML = `
+      <div class="countdown-display">
+        <div class="countdown-label">BLOCKS REMAINING</div>
+        <div class="countdown-blocks ${countClass}">${remaining.toLocaleString()}</div>
+        <div class="countdown-time">~${blocksToTime(remaining)}</div>
+        <div class="countdown-deadline">DEADLINE: BLOCK #${deadlineBlock.toLocaleString()}</div>
+      </div>
+      <div class="health-row">
+        <div class="health-bar-bg">
+          <div class="health-bar-fill" style="width:${Math.round(pct*100)}%;background:${isDanger?'var(--blood2)':isWarning?'var(--gold2)':'var(--alive2)'}"></div>
+        </div>
+        <div class="health-pct" style="color:${isDanger?'var(--blood2)':isWarning?'var(--gold2)':'var(--alive2)'}">${Math.round(pct*100)}%</div>
+      </div>
+      <div class="earnings-box">
+        <div>
+          <div class="earnings-lbl">ACCUMULATED FROM LIQUIDATIONS</div>
+          <div class="earnings-val">+${p.earnings} tokens</div>
+          <div class="earnings-victims">${p.victims} victim${p.victims!==1?'s':''} liquidated</div>
+        </div>
+        <div style="font-size:28px">💰</div>
+      </div>
+      <button class="ping-btn alive-ping" onclick="doPing(${i})" id="pingBtn${i}">
+        📍 PING — I'M ALIVE
+      </button>
+      <button class="hunt-btn" onclick="openHuntModal(${i})" ${p.usedBullet?'disabled title="Bullet used"':''}>
+        🎯 ${p.usedBullet ? 'BULLET USED' : 'DECLARE HUNT'}
+      </button>`;
+
+    // Update totals
+    document.getElementById(`t${i}earn`).textContent = `+${p.earnings} tokens`;
+  });
+
+  // Total earnings
+  const total   = playerPools.reduce((s,p)=>s+(p.earnings||0),0);
+  const victims = playerPools.reduce((s,p)=>s+(p.victims||0),0);
+  document.getElementById('totalEarnings').textContent = total.toLocaleString();
+  document.getElementById('totalVictims').textContent  = victims.toString();
+}
+
+// ══════════════════════════════════════════
+// BLOCK COUNTER ENGINE
+// ══════════════════════════════════════════
+function tick(){
+  currentBlock++;
+  document.getElementById('navBlock').textContent   = `BLOCK #${currentBlock.toLocaleString()}`;
+  document.getElementById('statBlock').textContent  = currentBlock.toLocaleString();
+  if(walletConnected) buildDashCards();
+}
+
+// ══════════════════════════════════════════
+// WALLET
+// ══════════════════════════════════════════
+function connectWallet(){
+  const btn = document.getElementById('connectBtn');
+  if(window.opnet){
+    window.opnet.requestAccounts().then(accs => {
+      if(accs && accs.length > 0){
+        walletConnected = true;
+        walletAddress   = accs[0];
+        btn.textContent = walletAddress.slice(0,8)+'...'+walletAddress.slice(-4);
+        btn.classList.add('connected');
+        onConnected();
+      }
+    }).catch(() => btn.textContent = 'CONNECTION FAILED');
+  } else {
+    btn.textContent = 'INSTALL OP_WALLET';
+    window.open('https://github.com/btc-vision/opwallet/releases','_blank');
+  }
+}
+
+function onConnected(){
+  // Show dashboard
+  document.getElementById('dashboard').classList.add('visible');
+  // Load from contract — here we use mock data
+  document.getElementById('statLocked').textContent    = '8,000';
+  document.getElementById('statSurvivors').textContent = '26';
+  document.getElementById('statKilled').textContent    = '4';
+  document.getElementById('statPools').textContent     = '3';
+  buildDashCards();
+}
+
+// ══════════════════════════════════════════
+// PING
+// ══════════════════════════════════════════
+function doPing(idx){
+  const btn = document.getElementById(`pingBtn${idx}`);
+  if(!btn) return;
+  btn.disabled = true;
+  btn.textContent = '⏳ SENDING...';
+  // After deploy: call contract ping(poolId)
+  setTimeout(()=>{
+    playerPools[idx].lastPing = currentBlock;
+    buildDashCards();
+    prependFeed('ping','📍',`<strong>You</strong> pinged <strong>Pool #${playerPools[idx].poolId}</strong>`,'','just now');
+  }, 1200);
+}
+
+// ══════════════════════════════════════════
+// HUNT
+// ══════════════════════════════════════════
+function openHuntModal(idx){
+  huntTargetPool = idx;
+  // Populate mock targets
+  const sel = document.getElementById('huntTargetSelect');
+  sel.innerHTML = `<option value="">— choose a player —</option>
+    <option value="opt1p...x7f">opt1p...x7f (820 blocks left)</option>
+    <option value="opt1p...9ab">opt1p...9ab (44 blocks left) ⚠️ LOW</option>
+    <option value="opt1p...b3e">opt1p...b3e (600 blocks left)</option>`;
+  document.getElementById('huntModal').classList.add('open');
+}
+function confirmHunt(){
+  const target = document.getElementById('huntTargetSelect').value;
+  if(!target){ alert('Select a target'); return; }
+  document.getElementById('huntModal').classList.remove('open');
+  prependFeed('hunt','🎯',`<strong>You</strong> declared hunt on <strong>${target}</strong>`,'','just now');
+  playerPools[huntTargetPool].usedBullet = true;
+  buildDashCards();
+}
+
+// ══════════════════════════════════════════
+// COUNTER HUNT (when YOU are hunted)
+// ══════════════════════════════════════════
+function counterHunt(){
+  if(huntTimer) clearInterval(huntTimer);
+  document.getElementById('huntAlert').classList.remove('active');
+  prependFeed('ping','⚡','<strong>You</strong> counter-pinged — <strong>hunter lost their bullet + 5% penalty</strong>','','just now');
+}
+function acceptDeath(){
+  if(huntTimer) clearInterval(huntTimer);
+  document.getElementById('huntAlert').classList.remove('active');
+}
+
+// DEMO: show hunt alert after 8 seconds for drama
+setTimeout(()=>{
+  if(!walletConnected) return;
+  const alert = document.getElementById('huntAlert');
+  alert.classList.add('active');
+  let sec = 60;
+  document.getElementById('huntCountdown').textContent = sec;
+  huntTimer = setInterval(()=>{
+    sec--;
+    document.getElementById('huntCountdown').textContent = sec;
+    if(sec <= 0){
+      clearInterval(huntTimer);
+      alert.classList.remove('active');
+    }
+  }, 1000);
+}, 8000);
+
+// ══════════════════════════════════════════
+// MODALS
+// ══════════════════════════════════════════
+function openJoinModal(poolId){
+  joinTargetPool = poolId;
+  document.getElementById('joinModal').classList.add('open');
+}
+function confirmJoin(){
+  document.getElementById('joinModal').classList.remove('open');
+  if(!walletConnected){ connectWallet(); return; }
+  alert(`Join Pool #${joinTargetPool} — activates after contract deployment.\n${CONTRACT}`);
+}
+function closeModal(id, e){
+  if(e.target === document.getElementById(id))
+    document.getElementById(id).classList.remove('open');
+}
+
+// ══════════════════════════════════════════
+// FEED HELPER
+// ══════════════════════════════════════════
+function prependFeed(type, icon, text, amount, time){
+  const list = document.getElementById('feedList');
+  const div  = document.createElement('div');
+  div.className = 'feed-item';
+  div.innerHTML = `
+    <div class="feed-type ${type}">${icon}</div>
+    <div class="feed-body">${text}</div>
+    ${amount?`<div class="feed-amount">${amount}</div>`:''}
+    <div class="feed-time">${time}</div>`;
+  list.insertBefore(div, list.firstChild);
+}
+
+// ══════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════
+function blocksToTime(blocks){
+  const mins = blocks * 10;
+  if(mins < 60)   return `${mins}m`;
+  if(mins < 1440) return `${Math.round(mins/60)}h`;
+  return `${(mins/1440).toFixed(1)}d`;
+}
+function formatTokens(amount){
+  const tokens = amount / 100_000_000;
+  if(tokens >= 1000) return (tokens/1000).toFixed(1)+'K';
+  return tokens.toFixed(0);
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+buildTicker();
+buildFeed();
+buildLeaderboard();
+buildArenaCards();
+document.getElementById('navBlock').textContent  = `BLOCK #${currentBlock.toLocaleString()}`;
+document.getElementById('statBlock').textContent = currentBlock.toLocaleString();
+document.getElementById('statLocked').textContent    = '—';
+document.getElementById('statSurvivors').textContent = '—';
+document.getElementById('statKilled').textContent    = '—';
+document.getElementById('statPools').textContent     = '—';
+
+// Simulate block progression (~1 block per 10s for demo)
+setInterval(tick, 10000);
+</script>
+</body>
+</html>
