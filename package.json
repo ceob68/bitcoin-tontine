@@ -12,7 +12,8 @@
         "build:registry": "asc src/registry/index.ts --target registry --measure --uncheckedBehavior never",
         "build:btc-resolver": "asc src/btc-resolver/index.ts --target btc-resolver --measure --uncheckedBehavior never",
         "test": "asp --config as-pect.config.js --verbose --no-logo",
-        "test:ci": "asp --config as-pect.config.js --summary --no-logo"
+        "test:ci": "asp --config as-pect.config.js --summary --no-logo",
+        "build:tontine": "asc src/index.ts --target tontine --measure --uncheckedBehavior never"
     },
     "author": "BlobMaster41",
     "license": "MIT",
